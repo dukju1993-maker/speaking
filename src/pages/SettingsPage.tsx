@@ -33,16 +33,24 @@ export default function SettingsPage() {
       {/* API Key */}
       <Section title="Claude API 키" icon="🔑">
         <div className="space-y-2">
+          {/* Cloudflare env var notice */}
+          <div className="bg-violet-900/20 border border-violet-800/40 rounded-xl p-3 text-xs text-violet-300 space-y-1">
+            <p className="font-medium">✅ 권장: Cloudflare 환경변수 사용</p>
+            <p className="text-violet-400">
+              Cloudflare Pages → Settings → Environment variables 에서<br />
+              <code className="bg-violet-900/40 px-1 py-0.5 rounded">ANTHROPIC_API_KEY</code>를 추가하면
+              API 키가 브라우저에 노출되지 않습니다.
+            </p>
+          </div>
           <p className="text-xs text-gray-500">
-            Anthropic Console에서 발급받은 API 키를 입력하세요.
-            키는 이 기기의 브라우저에만 저장됩니다.
+            환경변수를 설정했다면 아래는 비워두세요. 없으면 여기에 입력하세요 (브라우저 로컬 저장).
           </p>
           <div className="relative">
             <input
               type={showKey ? 'text' : 'password'}
               value={form.apiKey}
               onChange={(e) => setForm((f) => ({ ...f, apiKey: e.target.value }))}
-              placeholder="sk-ant-..."
+              placeholder="sk-ant-... (Cloudflare 환경변수 설정 시 비워두기)"
               className="input pr-11 font-mono text-sm"
             />
             <button

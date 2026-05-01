@@ -8,7 +8,7 @@ interface AnthropicMessage {
 }
 
 async function callAnthropic(
-  apiKey: string,
+  apiKey: string | undefined,
   system: string,
   messages: AnthropicMessage[],
   maxTokens = 1024
@@ -17,7 +17,7 @@ async function callAnthropic(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      apiKey,
+      ...(apiKey && { apiKey }), // omit if empty — server uses env var
       model: 'claude-sonnet-4-6',
       max_tokens: maxTokens,
       system,
@@ -99,7 +99,7 @@ export interface ClaudeResponse {
   followUps: string[];
 }
 
-export async function startConversation(apiKey: string, topic: Topic): Promise<string> {
+export async function startConversation(apiKey: string | undefined, topic: Topic): Promise<string> {
   const text = await callAnthropic(
     apiKey,
     buildSystemPrompt(topic),
@@ -127,7 +127,7 @@ export async function startConversation(apiKey: string, topic: Topic): Promise<s
 }
 
 export async function sendMessage(
-  apiKey: string,
+  apiKey: string | undefined,
   topic: Topic,
   history: Message[],
   userMessage: string

@@ -72,11 +72,11 @@ export default function ConversationPage() {
 
   // Start conversation on mount
   useEffect(() => {
-    if (!topic || sessionStarted || !settings.apiKey) return;
+    if (!topic || sessionStarted) return;
     setSessionStarted(true);
     sessionStartRef.current = new Date();
 
-    startConversation(settings.apiKey, topic)
+    startConversation(settings.apiKey || undefined, topic)
       .then((reply) => {
         const aiMsg: Message = {
           id: crypto.randomUUID(),
@@ -89,11 +89,11 @@ export default function ConversationPage() {
       })
       .catch((err) => setError(String(err)));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [topic, settings.apiKey]);
+  }, [topic]);
 
   const handleSend = useCallback(
     async (text: string) => {
-      if (!text.trim() || isLoading || !topic || !settings.apiKey) return;
+      if (!text.trim() || isLoading || !topic) return;
 
       stopListening();
       resetTranscript();
@@ -111,7 +111,7 @@ export default function ConversationPage() {
       setShowCorrection(false);
 
       try {
-        const result = await sendMessage(settings.apiKey, topic, [...messages, userMsg], text.trim());
+        const result = await sendMessage(settings.apiKey || undefined, topic, [...messages, userMsg], text.trim());
 
         const aiMsg: Message = {
           id: crypto.randomUUID(),
@@ -204,20 +204,6 @@ export default function ConversationPage() {
   };
 
   if (!topic) return <div className="p-8 text-center text-gray-500">Topic not found.</div>;
-
-  if (!settings.apiKey) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full gap-4 p-8">
-        <AlertCircle size={48} className="text-yellow-400" />
-        <p className="text-center text-gray-400">
-          Claude API 키가 없습니다. 설정에서 먼저 입력해주세요.
-        </p>
-        <button onClick={() => navigate('/settings')} className="btn-primary">
-          설정으로 이동
-        </button>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col h-screen bg-gray-950">

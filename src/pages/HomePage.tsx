@@ -16,17 +16,18 @@ export default function HomePage() {
 
   return (
     <div className="px-4 py-5 space-y-6">
-      {/* No API key warning */}
+      {/* API key hint — only shown if no local key and no server key detected */}
       {!settings.apiKey && (
         <div
-          className="flex items-start gap-3 bg-yellow-900/30 border border-yellow-700/50 rounded-xl p-4 cursor-pointer"
+          className="flex items-start gap-3 bg-gray-800/60 border border-gray-700 rounded-xl p-4 cursor-pointer"
           onClick={() => navigate('/settings')}
         >
-          <AlertCircle size={18} className="text-yellow-400 mt-0.5 shrink-0" />
+          <AlertCircle size={18} className="text-gray-400 mt-0.5 shrink-0" />
           <div>
-            <p className="text-sm font-medium text-yellow-300">Claude API 키가 필요해요</p>
-            <p className="text-xs text-yellow-500 mt-0.5">
-              설정에서 API 키를 입력하면 AI 대화가 시작됩니다 →
+            <p className="text-sm font-medium text-gray-300">API 키 미설정</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Cloudflare 환경변수에 <code className="text-violet-400">ANTHROPIC_API_KEY</code>가 설정돼 있으면 그대로 사용됩니다.
+              없으면 설정에서 직접 입력하세요 →
             </p>
           </div>
         </div>

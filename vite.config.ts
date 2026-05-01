@@ -1,11 +1,15 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import type { Plugin } from 'vite';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
-// Vite middleware that proxies /api/anthropic → Anthropic API
-// This keeps the API key server-side during development.
-function anthropicProxy(): Plugin {
+/**
+ * Dev-only middleware that replicates the Cloudflare Pages Function behavior.
+ * In production, `functions/api/anthropic.js` handles this route.
+ *
+ * Priority: ANTHROPIC_API_KEY env var → client-provided apiKey in body
+ */
+function anthropicProxy(envApiKey: string | undefined): Plugin {
   return {
     name: 'anthropic-proxy',
     configureServer(server) {
@@ -23,14 +27,23 @@ function anthropicProxy(): Plugin {
           req.on('end', async () => {
             try {
               const body = Buffer.concat(chunks).toString('utf-8');
-              const { apiKey, ...anthropicBody } = JSON.parse(body) as {
-                apiKey: string;
+              const { apiKey: clientKey, ...anthropicBody } = JSON.parse(body) as {
+                apiKey?: string;
                 [k: string]: unknown;
               };
 
+              const apiKey = envApiKey || clientKey;
+
               if (!apiKey) {
-                res.writeHead(400, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'Missing API key' }));
+                res.writeHead(401, { 'Content-Type': 'application/json' });
+                res.end(
+                  JSON.stringify({
+                    error: {
+                      message:
+                        'API key not set. Add ANTHROPIC_API_KEY to .env or enter it in Settings.',
+                    },
+                  })
+                );
                 return;
               }
 
@@ -49,7 +62,7 @@ function anthropicProxy(): Plugin {
               res.end(data);
             } catch (err) {
               res.writeHead(500, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({ error: String(err) }));
+              res.end(JSON.stringify({ error: { message: String(err) } }));
             }
           });
         }
@@ -58,6 +71,11 @@ function anthropicProxy(): Plugin {
   };
 }
 
-export default defineConfig({
-  plugins: [react(), anthropicProxy()],
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  const envApiKey = env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY;
+
+  return {
+    plugins: [react(), anthropicProxy(envApiKey)],
+  };
 });
