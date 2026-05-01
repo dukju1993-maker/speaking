@@ -24,6 +24,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   speakingRate: 0.95,
   voiceType: 'female',
   targetAccent: 'american',
+  userLevel: 'intermediate',
+  levelResult: null,
 };
 
 function deserializeMessage(m: Record<string, unknown>): Message {

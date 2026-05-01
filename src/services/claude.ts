@@ -1,4 +1,4 @@
-import type { Topic, Analysis, Message } from '../types';
+import type { Topic, Analysis, Message, UserLevel, LevelTestResult } from '../types';
 
 const API_URL = '/api/anthropic';
 
@@ -11,7 +11,7 @@ async function callAnthropic(
   apiKey: string | undefined,
   system: string,
   messages: AnthropicMessage[],
-  maxTokens = 1024
+  maxTokens = 1200
 ): Promise<string> {
   const res = await fetch(API_URL, {
     method: 'POST',
@@ -28,8 +28,7 @@ async function callAnthropic(
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(
-      (err as { error?: { message?: string }; message?: string }).error?.message ??
-      String((err as { error?: unknown }).error ?? res.statusText)
+      (err as { error?: { message?: string } }).error?.message ?? res.statusText
     );
   }
 
@@ -39,89 +38,192 @@ async function callAnthropic(
   return block.text;
 }
 
-function buildSystemPrompt(topic: Topic): string {
-  return `당신은 한국인 직장인을 비즈니스 원어민 수준으로 이끄는 최정예 영어 튜터입니다.
-영어 교육학과 한국인 영어 학습 패턴을 깊이 이해하고 있으며, 실전 비즈니스 영어에 특화되어 있습니다.
+// ─── Level config ────────────────────────────────────────────────────────────
 
-## 현재 대화 시나리오
+const LEVEL_CONFIG: Record<UserLevel, {
+  labelKo: string;
+  replyGuide: string;
+  correctionGuide: string;
+}> = {
+  beginner: {
+    labelKo: '입문',
+    replyGuide: '아주 짧고 단순하게 대답해요 (1~2문장). 일상적인 단어만 사용하고, 천천히 또렷하게 말하는 느낌으로 써주세요. 학습자가 이해할 수 있도록 쉬운 단어를 선택하세요.',
+    correctionGuide: '가장 중요한 오류 1개만 교정해주세요. 칭찬을 먼저 하고 부드럽게 알려주세요.',
+  },
+  elementary: {
+    labelKo: '초급',
+    replyGuide: '2~3문장으로 답하세요. 흔히 쓰는 어휘 위주로, 조금 쉬운 문장 구조를 사용해주세요.',
+    correctionGuide: '1~2개 오류를 교정해주세요. 격려와 함께 구체적인 설명을 곁들여 주세요.',
+  },
+  intermediate: {
+    labelKo: '중급',
+    replyGuide: '2~4문장으로 자연스럽게 답하세요. 일반적인 비즈니스 어휘와 자연스러운 표현을 사용하세요.',
+    correctionGuide: '중요한 오류 1~3개를 교정하고, 더 자연스러운 표현도 제안해주세요.',
+  },
+  'upper-intermediate': {
+    labelKo: '중상급',
+    replyGuide: '2~4문장으로 답하되 풍부한 어휘와 관용 표현을 자유롭게 써주세요. 원어민 속도로 자연스럽게 대화하세요.',
+    correctionGuide: '문법보다 자연스러움과 어휘 선택에 집중해서 교정해주세요. 전문적인 표현으로 격상시켜 주세요.',
+  },
+  advanced: {
+    labelKo: '고급',
+    replyGuide: '원어민처럼 자연스럽게 답하세요. 복잡한 문장 구조, 관용어, 비즈니스 용어를 자유롭게 사용하세요.',
+    correctionGuide: '매우 미묘한 부자연스러움이나 어색한 표현만 교정해주세요. 원어민이 실제로 쓰는 표현과의 차이를 설명해주세요.',
+  },
+};
+
+// ─── System prompt ────────────────────────────────────────────────────────────
+
+function buildSystemPrompt(topic: Topic, level: UserLevel): string {
+  const cfg = LEVEL_CONFIG[level];
+
+  return `You are having a real conversation. You happen to also be great at helping Korean professionals improve their English — but first and foremost, you're a real person in this scenario.
+
+## Who you are right now
 ${topic.scenario}
 
----
+## Your conversational style
+Stay fully in character. React like a real human would — surprised, curious, amused, direct, whatever fits the moment. Don't always be perfectly polite or positive. If the learner says something surprising, react to it. Keep it real.
 
-## 역할 1: 원어민 대화 파트너
-위 시나리오의 등장인물로서 완전히 몰입하여 자연스럽고 현실감 있게 대화하세요.
-- 2~4문장으로 적절히 반응하되, 대화가 계속 이어지도록 유도하세요
-- 지나치게 친절하거나 칭찬만 하지 말고, 실제 원어민처럼 반응하세요
-- 비즈니스 상황에서는 전문적이고 격식 있게, 일상 상황에서는 편안하게 대응하세요
-
-## 역할 2: 한국인 맞춤 영어 교정 튜터
-학습자의 발화를 분석하고 **모든 피드백을 반드시 한국어로** 작성하세요.
-
-### 한국인이 자주 범하는 오류 (우선 교정 대상)
-1. **관사 오류**: a/an/the 누락 또는 잘못 사용 (한국어에 관사 없음)
-2. **전치사 오류**: in/on/at/for/with/by 혼동 (한국어 조사와 다름)
-3. **시제 오류**: 현재완료(have p.p.) ↔ 과거시제, 진행형 혼동
-4. **직역 오류**: 한국어 문장구조를 그대로 영어로 옮긴 어색한 표현
-5. **주어 생략**: 한국어 습관으로 주어를 빠뜨리는 경우
-6. **단복수 오류**: 가산/불가산 명사 구분 실수
-7. **어색한 어휘 선택**: 사전 직역어 대신 원어민이 실제로 쓰는 표현 교정
-8. **비즈니스 표현**: 격식 없는 표현을 전문적인 비즈니스 영어로 격상
+${cfg.replyGuide}
 
 ---
 
-## 필수 응답 형식 (반드시 이 JSON 형식만 출력)
+## After each message, also include an analysis (in Korean)
+${cfg.correctionGuide}
+
+### 한국인이 자주 틀리는 것 (우선 집중)
+- 관사 (a/an/the) — 한국어에 없어서 자주 빠뜨림
+- 전치사 (in/on/at/for/by) — 한국어 조사와 매핑이 다름
+- 시제 — 현재완료 vs 과거, 진행형 혼동
+- 직역 표현 — 한국어를 그대로 영어로 옮긴 어색한 문장
+- 주어 생략 — 한국어 습관
+- 단복수 혼동
+
+---
+
+## 반드시 이 JSON 형식으로만 응답 (마크다운 없이)
 
 {
-  "reply": "원어민으로서의 자연스러운 영어 대화 응답",
+  "reply": "시나리오 속 당신으로서 자연스럽고 인간적인 영어 대화 응답",
   "analysis": {
     "hasErrors": true 또는 false,
-    "correctedText": "학습자 문장을 완전히 교정한 버전 (의미는 동일하게, 표현은 원어민답게)",
+    "correctedText": "학습자 문장의 완전한 교정 버전",
     "errors": [
       {
-        "type": "grammar 또는 vocabulary 또는 naturalness 또는 spelling",
-        "original": "학습자가 쓴 틀린 부분 그대로",
+        "type": "grammar | vocabulary | naturalness | spelling",
+        "original": "틀린 부분",
         "correction": "올바른 표현",
-        "explanation": "왜 틀렸는지, 어떻게 기억하면 되는지 한국어로 친절하고 명확하게 설명"
+        "explanation": "왜 틀렸는지, 어떻게 기억하면 좋은지 한국어로 자연스럽게 설명"
       }
     ],
-    "score": 1~10 사이 숫자,
-    "feedback": "학습자의 영어 수준에 대한 따뜻하고 구체적인 격려 한 마디 (한국어)",
-    "betterExpressions": ["같은 의미의 더 자연스러운/전문적인 표현 1", "대안 표현 2"]
+    "score": 1~10,
+    "feedback": "학습자에게 한국어로 따뜻하고 구체적인 피드백 한 마디",
+    "betterExpressions": ["더 자연스럽거나 세련된 표현 1", "대안 표현 2"]
   }
 }
 
-## 채점 기준 (score)
-- 10점: 완벽한 원어민 수준
-- 8~9점: 원어민과 대화하기 충분, 아주 미미한 문제만 있음
-- 6~7점: 의미 전달은 되지만 어색하거나 오류가 있음
-- 4~5점: 여러 오류로 의사소통에 어려움
-- 1~3점: 심각한 오류로 의미 파악이 어려움
-
-## 교정 원칙
-- 가장 중요한 오류 1~3개만 지적 (많으면 의욕이 꺾임)
-- 틀렸어도 먼저 학습자의 노력을 인정하는 따뜻한 피드백
-- 교정 설명은 구체적이고 실용적으로 (이론보다 활용법)
-- betterExpressions는 비즈니스 현장에서 바로 쓸 수 있는 표현으로
-- 오류가 없어도 "더 세련된 표현" 1~2개 항상 제시`;
+## 점수 기준
+10: 완벽한 원어민 수준 / 8~9: 충분히 자연스럽고 유창함 / 6~7: 의미 전달되나 어색함 / 4~5: 여러 오류 / 1~3: 심각한 오류`;
 }
+
+// ─── Level test prompt ────────────────────────────────────────────────────────
+
+const LEVEL_TEST_QUESTIONS = [
+  {
+    id: 1,
+    prompt: 'Please introduce yourself — your name, what you do, and something you enjoy outside of work.',
+    promptKo: '자기 소개를 해보세요 — 이름, 하는 일, 취미나 좋아하는 것 하나.',
+  },
+  {
+    id: 2,
+    prompt: 'Describe a typical workday for you. What kinds of tasks or challenges do you usually deal with?',
+    promptKo: '평소 하루 업무를 설명해보세요. 주로 어떤 일을 하나요?',
+  },
+  {
+    id: 3,
+    prompt: 'Tell me about a difficult situation you faced — at work or in life — and how you handled it.',
+    promptKo: '어려웠던 상황과 그것을 어떻게 해결했는지 이야기해보세요.',
+  },
+  {
+    id: 4,
+    prompt: "What's your opinion on AI's impact on jobs over the next 10 years? Do you see it as a threat or an opportunity?",
+    promptKo: 'AI가 앞으로 10년간 일자리에 미칠 영향에 대해 어떻게 생각하나요?',
+  },
+];
+
+export { LEVEL_TEST_QUESTIONS };
+
+async function evaluateLevel(
+  apiKey: string | undefined,
+  responses: Array<{ questionId: number; text: string }>
+): Promise<LevelTestResult> {
+  const formatted = responses
+    .map((r) => {
+      const q = LEVEL_TEST_QUESTIONS.find((q) => q.id === r.questionId);
+      return `Q${r.questionId}: ${q?.prompt}\nAnswer: ${r.text}`;
+    })
+    .join('\n\n');
+
+  const system = `You are an expert English proficiency assessor specializing in Korean learners.
+Evaluate the 4 responses and determine the learner's English level.
+
+Respond ONLY with valid JSON (no markdown):
+{
+  "level": "beginner | elementary | intermediate | upper-intermediate | advanced",
+  "levelKo": "입문 | 초급 | 중급 | 중상급 | 고급",
+  "cefrLevel": "A1-A2 | B1 | B2 | C1 | C2",
+  "overallScore": 1-10,
+  "strengths": ["강점 (한국어로)", "강점2"],
+  "weaknesses": ["약점 (한국어로)", "약점2"],
+  "recommendedTopicIds": ["topic-id-1", "topic-id-2", "topic-id-3"],
+  "studyTips": "이 학습자에게 가장 효과적인 학습 방법을 한국어로 2~3문장으로 설명"
+}
+
+Available topic IDs: business-meeting, job-interview, presentation, negotiation, networking, client-call, small-talk, travel, restaurant, debate, news-discussion, free-talk
+
+Level criteria:
+- beginner (A1-A2): Very basic sentences, many fundamental errors
+- elementary (B1): Simple sentences, common vocabulary, basic grammar mostly correct
+- intermediate (B2): Can discuss most topics, some grammar/naturalness issues
+- upper-intermediate (C1): Fluent with occasional advanced errors, good range
+- advanced (C2): Near-native, only subtle naturalness or nuance issues`;
+
+  const text = await callAnthropic(
+    apiKey,
+    system,
+    [{ role: 'user', content: `Please evaluate these 4 English responses:\n\n${formatted}` }],
+    800
+  );
+
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error('레벨 평가 응답 형식 오류');
+  const parsed = JSON.parse(jsonMatch[0]) as Omit<LevelTestResult, 'testedAt'>;
+  return { ...parsed, testedAt: new Date().toISOString() };
+}
+
+export { evaluateLevel };
+
+// ─── Public API ───────────────────────────────────────────────────────────────
 
 export interface ClaudeResponse {
   reply: string;
   analysis: Analysis & { hasErrors: boolean };
 }
 
-export async function startConversation(apiKey: string | undefined, topic: Topic): Promise<string> {
+export async function startConversation(
+  apiKey: string | undefined,
+  topic: Topic,
+  level: UserLevel
+): Promise<string> {
   const text = await callAnthropic(
     apiKey,
-    buildSystemPrompt(topic),
-    [
-      {
-        role: 'user',
-        content:
-          '[대화 시작] 시나리오 등장인물로서 자연스럽고 현실적인 영어 인사말로 대화를 시작해주세요. 2~3문장으로, 상황을 설정하며 학습자가 자연스럽게 대답할 수 있도록 유도하세요. JSON 없이 영어 텍스트만 출력하세요.',
-      },
-    ],
-    300
+    buildSystemPrompt(topic, level),
+    [{
+      role: 'user',
+      content: '[대화 시작] 시나리오 속 당신으로서, 자연스럽고 현실감 있는 첫 마디로 대화를 열어주세요. JSON 없이 영어 텍스트만 출력하세요.',
+    }],
+    250
   );
 
   try {
@@ -130,15 +232,14 @@ export async function startConversation(apiKey: string | undefined, topic: Topic
       const parsed = JSON.parse(jsonMatch[0]) as { reply?: string };
       return parsed.reply ?? text;
     }
-  } catch {
-    // not JSON
-  }
+  } catch { /* not JSON */ }
   return text;
 }
 
 export async function sendMessage(
   apiKey: string | undefined,
   topic: Topic,
+  level: UserLevel,
   history: Message[],
   userMessage: string
 ): Promise<ClaudeResponse> {
@@ -149,12 +250,12 @@ export async function sendMessage(
 
   pastMessages.push({ role: 'user', content: userMessage });
 
-  const text = await callAnthropic(apiKey, buildSystemPrompt(topic), pastMessages, 1200);
+  const text = await callAnthropic(apiKey, buildSystemPrompt(topic, level), pastMessages);
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error('응답 형식 오류. 다시 시도해주세요.');
 
-  let parsed: {
+  const parsed = JSON.parse(jsonMatch[0]) as {
     reply?: string;
     analysis?: {
       hasErrors?: boolean;
@@ -165,12 +266,6 @@ export async function sendMessage(
       betterExpressions?: string[];
     };
   };
-
-  try {
-    parsed = JSON.parse(jsonMatch[0]);
-  } catch {
-    throw new Error('응답 파싱 실패. 다시 시도해주세요.');
-  }
 
   return {
     reply: parsed.reply ?? '',
@@ -184,7 +279,7 @@ export async function sendMessage(
         explanation: e.explanation,
       })),
       score: parsed.analysis?.score ?? 8,
-      feedback: parsed.analysis?.feedback ?? '잘 하셨어요! 계속 연습해봐요.',
+      feedback: parsed.analysis?.feedback ?? '잘 하셨어요!',
       betterExpressions: parsed.analysis?.betterExpressions ?? [],
     },
   };

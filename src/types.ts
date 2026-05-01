@@ -4,6 +4,7 @@ export type ErrorType = 'grammar' | 'vocabulary' | 'naturalness' | 'spelling';
 export type MessageRole = 'user' | 'assistant';
 export type TargetAccent = 'american' | 'british';
 export type VoiceType = 'female' | 'male' | 'gentle';
+export type UserLevel = 'beginner' | 'elementary' | 'intermediate' | 'upper-intermediate' | 'advanced';
 
 export interface Topic {
   id: string;
@@ -71,10 +72,24 @@ export interface UserStats {
   topicsExplored: string[];
 }
 
+export interface LevelTestResult {
+  level: UserLevel;
+  levelKo: string;
+  cefrLevel: string;
+  overallScore: number;
+  strengths: string[];
+  weaknesses: string[];
+  recommendedTopicIds: string[];
+  studyTips: string;
+  testedAt: string;
+}
+
 export interface AppSettings {
   voiceEnabled: boolean;
   autoSpeak: boolean;
   speakingRate: number;
   voiceType: VoiceType;
   targetAccent: TargetAccent;
+  userLevel: UserLevel;
+  levelResult: LevelTestResult | null;
 }

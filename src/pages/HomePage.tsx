@@ -1,54 +1,62 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, Flame, Target } from 'lucide-react';
+import { ChevronRight, Flame, Target, ClipboardList } from 'lucide-react';
 import clsx from 'clsx';
 import { TOPICS, TOPIC_CATEGORIES } from '../data/topics';
 import { useAppStore } from '../store';
-import type { TopicCategory } from '../types';
+import type { TopicCategory, UserLevel } from '../types';
+
+const LEVEL_LABEL: Record<UserLevel, string> = {
+  beginner: '입문', elementary: '초급', intermediate: '중급',
+  'upper-intermediate': '중상급', advanced: '고급',
+};
+const LEVEL_COLOR: Record<UserLevel, string> = {
+  beginner: 'text-green-400 bg-green-900/30 border-green-800',
+  elementary: 'text-blue-400 bg-blue-900/30 border-blue-800',
+  intermediate: 'text-yellow-400 bg-yellow-900/30 border-yellow-800',
+  'upper-intermediate': 'text-orange-400 bg-orange-900/30 border-orange-800',
+  advanced: 'text-violet-400 bg-violet-900/30 border-violet-800',
+};
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const { stats } = useAppStore();
+  const { stats, settings } = useAppStore();
   const [activeCategory, setActiveCategory] = useState<TopicCategory | 'all'>('all');
 
-  const filtered =
-    activeCategory === 'all' ? TOPICS : TOPICS.filter((t) => t.category === activeCategory);
+  const filtered = activeCategory === 'all' ? TOPICS : TOPICS.filter((t) => t.category === activeCategory);
 
   return (
-    <div className="px-4 py-5 space-y-6">
+    <div className="px-4 py-5 space-y-5">
+      {/* Level banner */}
+      <div
+        className={clsx('flex items-center justify-between border rounded-xl px-4 py-3 cursor-pointer hover:opacity-80 transition-opacity', LEVEL_COLOR[settings.userLevel])}
+        onClick={() => navigate('/level-test')}
+      >
+        <div className="flex items-center gap-2.5">
+          <ClipboardList size={16} />
+          <div>
+            <p className="text-xs opacity-70">현재 레벨</p>
+            <p className="font-semibold text-sm">{LEVEL_LABEL[settings.userLevel]}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 text-xs opacity-70">
+          <span>{settings.levelResult ? '레벨 재테스트' : '레벨 테스트 시작'}</span>
+          <ChevronRight size={14} />
+        </div>
+      </div>
+
       {/* Stats strip */}
       <div className="grid grid-cols-3 gap-3">
-        <StatCard
-          icon={<Flame size={18} className="text-orange-400" />}
-          value={`${stats.currentStreak}일`}
-          label="연속 학습"
-          bg="bg-orange-900/20 border-orange-800/50"
-        />
-        <StatCard
-          icon={<Target size={18} className="text-violet-400" />}
-          value={stats.totalSessions.toString()}
-          label="총 세션"
-          bg="bg-violet-900/20 border-violet-800/50"
-        />
-        <StatCard
-          icon={<span className="text-lg">⭐</span>}
-          value={stats.avgScore > 0 ? stats.avgScore.toFixed(1) : '--'}
-          label="평균 점수"
-          bg="bg-yellow-900/20 border-yellow-800/50"
-        />
+        <StatCard icon={<Flame size={18} className="text-orange-400" />} value={`${stats.currentStreak}일`} label="연속 학습" bg="bg-orange-900/20 border-orange-800/50" />
+        <StatCard icon={<Target size={18} className="text-violet-400" />} value={stats.totalSessions.toString()} label="총 세션" bg="bg-violet-900/20 border-violet-800/50" />
+        <StatCard icon={<span className="text-lg">⭐</span>} value={stats.avgScore > 0 ? stats.avgScore.toFixed(1) : '--'} label="평균 점수" bg="bg-yellow-900/20 border-yellow-800/50" />
       </div>
 
       {/* Category filter */}
       <div className="flex gap-2 overflow-x-auto pb-1">
-        <FilterChip active={activeCategory === 'all'} onClick={() => setActiveCategory('all')}>
-          전체
-        </FilterChip>
+        <FilterChip active={activeCategory === 'all'} onClick={() => setActiveCategory('all')}>전체</FilterChip>
         {TOPIC_CATEGORIES.map((cat) => (
-          <FilterChip
-            key={cat.id}
-            active={activeCategory === cat.id}
-            onClick={() => setActiveCategory(cat.id as TopicCategory)}
-          >
+          <FilterChip key={cat.id} active={activeCategory === cat.id} onClick={() => setActiveCategory(cat.id as TopicCategory)}>
             {cat.emoji} {cat.labelKo}
           </FilterChip>
         ))}
@@ -101,15 +109,10 @@ function StatCard({ icon, value, label, bg }: { icon: React.ReactNode; value: st
 
 function FilterChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
-    <button
-      onClick={onClick}
-      className={clsx(
-        'whitespace-nowrap text-sm px-3.5 py-1.5 rounded-full border transition-colors',
-        active
-          ? 'bg-violet-600 border-violet-500 text-white'
-          : 'bg-gray-900 border-gray-700 text-gray-400 hover:border-gray-600 hover:text-gray-300'
-      )}
-    >
+    <button onClick={onClick} className={clsx(
+      'whitespace-nowrap text-sm px-3.5 py-1.5 rounded-full border transition-colors',
+      active ? 'bg-violet-600 border-violet-500 text-white' : 'bg-gray-900 border-gray-700 text-gray-400 hover:border-gray-600 hover:text-gray-300'
+    )}>
       {children}
     </button>
   );
