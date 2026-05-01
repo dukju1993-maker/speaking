@@ -8,7 +8,26 @@
     <meta name="description" content="AI-powered English speaking practice with real-time corrections" />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Fallback shown only if JavaScript fails to load -->
+      <div id="js-fallback" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#0a0a14;color:#9ca3af;font-family:sans-serif;gap:16px;text-align:center;padding:24px">
+        <div style="font-size:32px">🎙️</div>
+        <div style="font-size:18px;font-weight:bold;color:#e5e7eb">SpeakAI</div>
+        <div style="font-size:14px">Loading...</div>
+      </div>
+    </div>
+    <script>
+      // Hide fallback once React mounts
+      document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(function() {
+          var fb = document.getElementById('js-fallback');
+          var root = document.getElementById('root');
+          if (fb && root && root.children.length === 1) {
+            fb.innerHTML = '<div style="color:#f87171;font-size:14px">앱 로딩 실패. 빌드 설정을 확인하세요.<br><br><button onclick="location.reload()" style="background:#7c3aed;color:white;border:none;padding:8px 20px;border-radius:8px;cursor:pointer;font-size:14px">새로고침</button></div>';
+          }
+        }, 5000);
+      });
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
