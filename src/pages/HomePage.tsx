@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertCircle, ChevronRight, Flame, Target } from 'lucide-react';
+import { ChevronRight, Flame, Target } from 'lucide-react';
 import clsx from 'clsx';
 import { TOPICS, TOPIC_CATEGORIES } from '../data/topics';
 import { useAppStore } from '../store';
@@ -8,7 +8,7 @@ import type { TopicCategory } from '../types';
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const { settings, stats } = useAppStore();
+  const { stats } = useAppStore();
   const [activeCategory, setActiveCategory] = useState<TopicCategory | 'all'>('all');
 
   const filtered =
@@ -16,23 +16,6 @@ export default function HomePage() {
 
   return (
     <div className="px-4 py-5 space-y-6">
-      {/* API key hint — only shown if no local key and no server key detected */}
-      {!settings.apiKey && (
-        <div
-          className="flex items-start gap-3 bg-gray-800/60 border border-gray-700 rounded-xl p-4 cursor-pointer"
-          onClick={() => navigate('/settings')}
-        >
-          <AlertCircle size={18} className="text-gray-400 mt-0.5 shrink-0" />
-          <div>
-            <p className="text-sm font-medium text-gray-300">API 키 미설정</p>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Cloudflare 환경변수에 <code className="text-violet-400">ANTHROPIC_API_KEY</code>가 설정돼 있으면 그대로 사용됩니다.
-              없으면 설정에서 직접 입력하세요 →
-            </p>
-          </div>
-        </div>
-      )}
-
       {/* Stats strip */}
       <div className="grid grid-cols-3 gap-3">
         <StatCard
@@ -56,11 +39,8 @@ export default function HomePage() {
       </div>
 
       {/* Category filter */}
-      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-        <FilterChip
-          active={activeCategory === 'all'}
-          onClick={() => setActiveCategory('all')}
-        >
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        <FilterChip active={activeCategory === 'all'} onClick={() => setActiveCategory('all')}>
           전체
         </FilterChip>
         {TOPIC_CATEGORIES.map((cat) => (
@@ -74,7 +54,7 @@ export default function HomePage() {
         ))}
       </div>
 
-      {/* Topic grid */}
+      {/* Topic list */}
       <div className="space-y-3">
         {filtered.map((topic) => (
           <button
@@ -83,42 +63,24 @@ export default function HomePage() {
             className="w-full text-left card p-4 hover:border-gray-700 hover:bg-gray-800/80 transition-all duration-200 group"
           >
             <div className="flex items-start gap-4">
-              {/* Icon */}
-              <div
-                className={clsx(
-                  'w-12 h-12 rounded-xl flex items-center justify-center text-2xl shrink-0 bg-gradient-to-br',
-                  topic.gradient
-                )}
-              >
+              <div className={clsx('w-12 h-12 rounded-xl flex items-center justify-center text-2xl shrink-0 bg-gradient-to-br', topic.gradient)}>
                 {topic.icon}
               </div>
-
-              {/* Text */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5">
                   <h3 className="font-semibold text-gray-100">{topic.nameKo}</h3>
-                  <span
-                    className={clsx(
-                      topic.difficulty === 'beginner' && 'badge-beginner',
-                      topic.difficulty === 'intermediate' && 'badge-intermediate',
-                      topic.difficulty === 'advanced' && 'badge-advanced'
-                    )}
-                  >
-                    {topic.difficulty === 'beginner'
-                      ? '입문'
-                      : topic.difficulty === 'intermediate'
-                      ? '중급'
-                      : '고급'}
+                  <span className={clsx(
+                    topic.difficulty === 'beginner' && 'badge-beginner',
+                    topic.difficulty === 'intermediate' && 'badge-intermediate',
+                    topic.difficulty === 'advanced' && 'badge-advanced'
+                  )}>
+                    {topic.difficulty === 'beginner' ? '입문' : topic.difficulty === 'intermediate' ? '중급' : '고급'}
                   </span>
                 </div>
                 <p className="text-xs text-gray-500">{topic.name}</p>
                 <p className="text-xs text-gray-400 mt-1 line-clamp-1">{topic.description}</p>
               </div>
-
-              <ChevronRight
-                size={18}
-                className="text-gray-600 group-hover:text-gray-400 transition-colors shrink-0 mt-1"
-              />
+              <ChevronRight size={18} className="text-gray-600 group-hover:text-gray-400 transition-colors shrink-0 mt-1" />
             </div>
           </button>
         ))}
@@ -127,17 +89,7 @@ export default function HomePage() {
   );
 }
 
-function StatCard({
-  icon,
-  value,
-  label,
-  bg,
-}: {
-  icon: React.ReactNode;
-  value: string;
-  label: string;
-  bg: string;
-}) {
+function StatCard({ icon, value, label, bg }: { icon: React.ReactNode; value: string; label: string; bg: string }) {
   return (
     <div className={clsx('border rounded-xl p-3 text-center', bg)}>
       <div className="flex justify-center mb-1">{icon}</div>
@@ -147,15 +99,7 @@ function StatCard({
   );
 }
 
-function FilterChip({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
+function FilterChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button
       onClick={onClick}

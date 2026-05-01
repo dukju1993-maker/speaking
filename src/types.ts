@@ -3,6 +3,7 @@ export type TopicDifficulty = 'beginner' | 'intermediate' | 'advanced';
 export type ErrorType = 'grammar' | 'vocabulary' | 'naturalness' | 'spelling';
 export type MessageRole = 'user' | 'assistant';
 export type TargetAccent = 'american' | 'british';
+export type VoiceType = 'female' | 'male' | 'gentle';
 
 export interface Topic {
   id: string;
@@ -38,7 +39,6 @@ export interface Message {
   content: string;
   timestamp: Date;
   analysis?: Analysis;
-  followUps?: string[];
 }
 
 export interface SessionStats {
@@ -72,11 +72,9 @@ export interface UserStats {
 }
 
 export interface AppSettings {
-  apiKey: string;
   voiceEnabled: boolean;
   autoSpeak: boolean;
   speakingRate: number;
-  voicePitch: number;
-  preferredVoice: string;
+  voiceType: VoiceType;
   targetAccent: TargetAccent;
 }

@@ -1,20 +1,22 @@
 import { useState } from 'react';
-import { Eye, EyeOff, Save, Volume2, Mic, Check } from 'lucide-react';
+import { Save, Volume2, Check } from 'lucide-react';
 import clsx from 'clsx';
 import { useAppStore } from '../store';
 import { useSpeechSynthesis } from '../hooks/useSpeechSynthesis';
+import type { VoiceType } from '../types';
+
+const VOICE_OPTIONS: { type: VoiceType; label: string; desc: string; emoji: string }[] = [
+  { type: 'female', label: '여성 목소리', desc: '명확하고 또렷한 미국식 여성 발음', emoji: '👩' },
+  { type: 'male',   label: '남성 목소리', desc: '안정감 있는 남성 발음',           emoji: '👨' },
+  { type: 'gentle', label: '부드러운',    desc: '천천히, 듣기 편한 속도로',         emoji: '🌿' },
+];
 
 export default function SettingsPage() {
   const { settings, setSettings } = useAppStore();
-  const [showKey, setShowKey] = useState(false);
   const [saved, setSaved] = useState(false);
   const [form, setForm] = useState(settings);
 
-  const { voices, speak } = useSpeechSynthesis(
-    form.speakingRate,
-    form.voicePitch,
-    form.preferredVoice
-  );
+  const { speak } = useSpeechSynthesis(form.speakingRate, form.voiceType);
 
   const handleSave = () => {
     setSettings(form);
@@ -23,139 +25,84 @@ export default function SettingsPage() {
   };
 
   const handlePreview = () => {
-    speak("Hello! I'm your English speaking partner. Let's practice together today.");
+    speak("Hello! It's great to practice English with you today. Let's get started!");
   };
 
   return (
     <div className="px-4 py-5 space-y-6 pb-8">
       <h2 className="font-bold text-gray-100">설정</h2>
 
-      {/* API Key */}
-      <Section title="Claude API 키" icon="🔑">
+      {/* Voice Type */}
+      <Section title="AI 음성 스타일" icon="🎙️">
         <div className="space-y-2">
-          {/* Cloudflare env var notice */}
-          <div className="bg-violet-900/20 border border-violet-800/40 rounded-xl p-3 text-xs text-violet-300 space-y-1">
-            <p className="font-medium">✅ 권장: Cloudflare 환경변수 사용</p>
-            <p className="text-violet-400">
-              Cloudflare Pages → Settings → Environment variables 에서<br />
-              <code className="bg-violet-900/40 px-1 py-0.5 rounded">ANTHROPIC_API_KEY</code>를 추가하면
-              API 키가 브라우저에 노출되지 않습니다.
-            </p>
-          </div>
-          <p className="text-xs text-gray-500">
-            환경변수를 설정했다면 아래는 비워두세요. 없으면 여기에 입력하세요 (브라우저 로컬 저장).
-          </p>
-          <div className="relative">
-            <input
-              type={showKey ? 'text' : 'password'}
-              value={form.apiKey}
-              onChange={(e) => setForm((f) => ({ ...f, apiKey: e.target.value }))}
-              placeholder="sk-ant-... (Cloudflare 환경변수 설정 시 비워두기)"
-              className="input pr-11 font-mono text-sm"
-            />
+          {VOICE_OPTIONS.map((opt) => (
             <button
-              onClick={() => setShowKey((s) => !s)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+              key={opt.type}
+              onClick={() => setForm((f) => ({ ...f, voiceType: opt.type }))}
+              className={clsx(
+                'w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-colors',
+                form.voiceType === opt.type
+                  ? 'bg-violet-600/20 border-violet-500 text-violet-200'
+                  : 'bg-gray-800 border-gray-700 text-gray-300 hover:border-gray-600'
+              )}
             >
-              {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
+              <span className="text-2xl shrink-0">{opt.emoji}</span>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm">{opt.label}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{opt.desc}</p>
+              </div>
+              {form.voiceType === opt.type && (
+                <Check size={16} className="text-violet-400 shrink-0" />
+              )}
             </button>
-          </div>
-          {form.apiKey && (
-            <p className="text-xs text-green-500 flex items-center gap-1">
-              <Check size={12} /> API 키가 입력되었습니다
-            </p>
-          )}
+          ))}
         </div>
       </Section>
 
-      {/* Voice Settings */}
-      <Section title="음성 설정" icon="🎤">
-        <div className="space-y-4">
+      {/* Speaking Rate */}
+      <Section title="말하기 속도" icon="⚡">
+        <div className="space-y-3">
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-gray-400">속도</span>
+            <span className="text-sm font-medium text-gray-200">{form.speakingRate.toFixed(2)}x</span>
+          </div>
+          <input
+            type="range"
+            min={0.6}
+            max={1.3}
+            step={0.05}
+            value={form.speakingRate}
+            onChange={(e) => setForm((f) => ({ ...f, speakingRate: parseFloat(e.target.value) }))}
+            className="w-full accent-violet-500"
+          />
+          <div className="flex justify-between text-xs text-gray-600">
+            <span>느리게 (0.6x)</span>
+            <span>보통 (1.0x)</span>
+            <span>빠르게 (1.3x)</span>
+          </div>
+        </div>
+      </Section>
+
+      {/* Auto Speak */}
+      <Section title="자동 음성 재생" icon="🔊">
+        <div className="space-y-3">
           <Toggle
-            label="음성 응답 활성화"
-            description="AI 응답을 자동으로 읽어줍니다"
+            label="AI 응답 자동 읽기"
+            description="AI가 답변하면 자동으로 음성으로 읽어줍니다"
+            checked={form.autoSpeak}
+            onChange={(v) => setForm((f) => ({ ...f, autoSpeak: v }))}
+          />
+          <Toggle
+            label="음성 기능 활성화"
+            description="음성인식(STT) 및 음성 재생(TTS) 전체 사용"
             checked={form.voiceEnabled}
             onChange={(v) => setForm((f) => ({ ...f, voiceEnabled: v }))}
           />
-          <Toggle
-            label="자동 읽기"
-            description="AI가 답변하면 자동으로 음성 재생"
-            checked={form.autoSpeak}
-            onChange={(v) => setForm((f) => ({ ...f, autoSpeak: v }))}
-            disabled={!form.voiceEnabled}
-          />
-
-          {/* Speaking rate */}
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <label className="text-sm text-gray-300">말하기 속도</label>
-              <span className="text-sm text-gray-400">{form.speakingRate.toFixed(2)}x</span>
-            </div>
-            <input
-              type="range"
-              min={0.5}
-              max={1.5}
-              step={0.05}
-              value={form.speakingRate}
-              onChange={(e) => setForm((f) => ({ ...f, speakingRate: parseFloat(e.target.value) }))}
-              className="w-full accent-violet-500"
-            />
-            <div className="flex justify-between text-xs text-gray-600">
-              <span>느림 (0.5x)</span>
-              <span>보통 (1.0x)</span>
-              <span>빠름 (1.5x)</span>
-            </div>
-          </div>
-
-          {/* Voice pitch */}
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <label className="text-sm text-gray-300">음성 높낮이</label>
-              <span className="text-sm text-gray-400">{form.voicePitch.toFixed(1)}</span>
-            </div>
-            <input
-              type="range"
-              min={0.5}
-              max={1.5}
-              step={0.1}
-              value={form.voicePitch}
-              onChange={(e) => setForm((f) => ({ ...f, voicePitch: parseFloat(e.target.value) }))}
-              className="w-full accent-violet-500"
-            />
-          </div>
-
-          {/* Voice selection */}
-          {voices.length > 0 && (
-            <div className="space-y-1.5">
-              <label className="text-sm text-gray-300">음성 선택</label>
-              <select
-                value={form.preferredVoice}
-                onChange={(e) => setForm((f) => ({ ...f, preferredVoice: e.target.value }))}
-                className="input text-sm"
-              >
-                <option value="">기본 음성</option>
-                {voices.map((v) => (
-                  <option key={v.name} value={v.name}>
-                    {v.name} ({v.lang})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Preview button */}
-          <button
-            onClick={handlePreview}
-            className="flex items-center gap-2 text-sm text-violet-400 hover:text-violet-300 border border-violet-800 hover:border-violet-700 px-4 py-2 rounded-xl transition-colors"
-          >
-            <Volume2 size={16} />
-            음성 미리듣기
-          </button>
         </div>
       </Section>
 
-      {/* Target accent */}
-      <Section title="목표 영어 발음" icon="🌍">
+      {/* Target Accent */}
+      <Section title="목표 발음" icon="🌍">
         <div className="grid grid-cols-2 gap-2">
           {(['american', 'british'] as const).map((accent) => (
             <button
@@ -168,56 +115,45 @@ export default function SettingsPage() {
                   : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-600'
               )}
             >
-              {accent === 'american' ? '🇺🇸 American' : '🇬🇧 British'}
+              {accent === 'american' ? '🇺🇸 미국식' : '🇬🇧 영국식'}
             </button>
           ))}
         </div>
       </Section>
 
+      {/* Preview */}
+      <button
+        onClick={handlePreview}
+        className="flex items-center gap-2 text-sm text-violet-400 hover:text-violet-300 border border-violet-800 hover:border-violet-700 px-4 py-2.5 rounded-xl transition-colors w-full justify-center"
+      >
+        <Volume2 size={16} />
+        음성 미리 듣기
+      </button>
+
       {/* About */}
       <Section title="앱 정보" icon="ℹ️">
         <div className="text-xs text-gray-500 space-y-1">
-          <p>SpeakAI v0.1.0 — Claude claude-sonnet-4-6 기반</p>
-          <p>Web Speech API (음성인식 · TTS) + Anthropic Claude API</p>
-          <p className="text-gray-600 mt-2">
-            Chrome/Edge 브라우저에서 음성인식이 가장 잘 작동합니다.
-          </p>
+          <p>SpeakAI v0.2.0 — Claude claude-sonnet-4-6 기반</p>
+          <p>Web Speech API + Anthropic Claude API (Cloudflare Pages Function)</p>
+          <p className="text-gray-600 mt-2">Chrome / Edge 브라우저에서 음성인식이 가장 잘 작동합니다.</p>
         </div>
       </Section>
 
-      {/* Save button */}
+      {/* Save */}
       <button
         onClick={handleSave}
         className={clsx(
           'w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-colors',
-          saved
-            ? 'bg-green-600 text-white'
-            : 'bg-violet-600 hover:bg-violet-500 text-white'
+          saved ? 'bg-green-600 text-white' : 'bg-violet-600 hover:bg-violet-500 text-white'
         )}
       >
-        {saved ? (
-          <>
-            <Check size={16} /> 저장되었습니다!
-          </>
-        ) : (
-          <>
-            <Save size={16} /> 설정 저장
-          </>
-        )}
+        {saved ? <><Check size={16} /> 저장 완료!</> : <><Save size={16} /> 설정 저장</>}
       </button>
     </div>
   );
 }
 
-function Section({
-  title,
-  icon,
-  children,
-}: {
-  title: string;
-  icon: string;
-  children: React.ReactNode;
-}) {
+function Section({ title, icon, children }: { title: string; icon: string; children: React.ReactNode }) {
   return (
     <div className="card p-4 space-y-3">
       <div className="flex items-center gap-2">
@@ -230,42 +166,21 @@ function Section({
 }
 
 function Toggle({
-  label,
-  description,
-  checked,
-  onChange,
-  disabled = false,
+  label, description, checked, onChange, disabled = false,
 }: {
-  label: string;
-  description?: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  disabled?: boolean;
+  label: string; description?: string; checked: boolean; onChange: (v: boolean) => void; disabled?: boolean;
 }) {
   return (
-    <div
-      className={clsx(
-        'flex items-center justify-between',
-        disabled && 'opacity-50 pointer-events-none'
-      )}
-    >
+    <div className={clsx('flex items-center justify-between', disabled && 'opacity-50 pointer-events-none')}>
       <div>
         <p className="text-sm text-gray-300">{label}</p>
         {description && <p className="text-xs text-gray-500">{description}</p>}
       </div>
       <button
         onClick={() => onChange(!checked)}
-        className={clsx(
-          'w-11 h-6 rounded-full transition-colors relative',
-          checked ? 'bg-violet-600' : 'bg-gray-700'
-        )}
+        className={clsx('w-11 h-6 rounded-full transition-colors relative', checked ? 'bg-violet-600' : 'bg-gray-700')}
       >
-        <div
-          className={clsx(
-            'w-4 h-4 bg-white rounded-full absolute top-1 transition-transform',
-            checked ? 'translate-x-6' : 'translate-x-1'
-          )}
-        />
+        <div className={clsx('w-4 h-4 bg-white rounded-full absolute top-1 transition-transform', checked ? 'translate-x-6' : 'translate-x-1')} />
       </button>
     </div>
   );

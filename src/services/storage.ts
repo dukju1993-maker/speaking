@@ -19,12 +19,10 @@ const DEFAULT_STATS: UserStats = {
 };
 
 const DEFAULT_SETTINGS: AppSettings = {
-  apiKey: '',
   voiceEnabled: true,
   autoSpeak: true,
   speakingRate: 0.95,
-  voicePitch: 1.0,
-  preferredVoice: '',
+  voiceType: 'female',
   targetAccent: 'american',
 };
 

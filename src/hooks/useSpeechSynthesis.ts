@@ -1,21 +1,31 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import type { VoiceType } from '../types';
 
 export interface SpeechSynthesisResult {
   speak: (text: string) => void;
   stop: () => void;
   isSpeaking: boolean;
-  voices: SpeechSynthesisVoice[];
   isSupported: boolean;
+}
+
+const FEMALE_NAMES = ['Samantha', 'Ava', 'Allison', 'Karen', 'Victoria', 'Tessa', 'Moira', 'Susan', 'Google US English', 'Zira', 'Aria'];
+const MALE_NAMES   = ['Alex', 'Daniel', 'Fred', 'Tom', 'Google UK English Male', 'David', 'Guy', 'Mark', 'James'];
+
+function pickVoice(voices: SpeechSynthesisVoice[], type: VoiceType): SpeechSynthesisVoice | undefined {
+  const names = (type === 'male') ? MALE_NAMES : FEMALE_NAMES;
+  for (const name of names) {
+    const v = voices.find((v) => v.name.includes(name));
+    if (v) return v;
+  }
+  return voices[0];
 }
 
 export function useSpeechSynthesis(
   rate = 0.95,
-  pitch = 1.0,
-  preferredVoice = ''
+  voiceType: VoiceType = 'female'
 ): SpeechSynthesisResult {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const isSupported = typeof window !== 'undefined' && 'speechSynthesis' in window;
 
   useEffect(() => {
@@ -39,38 +49,19 @@ export function useSpeechSynthesis(
 
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'en-US';
-      utterance.rate = rate;
-      utterance.pitch = pitch;
+      utterance.rate = voiceType === 'gentle' ? Math.min(rate, 0.85) : rate;
+      utterance.pitch = voiceType === 'gentle' ? 0.9 : 1.0;
 
-      // Pick the best available English voice
-      let voice: SpeechSynthesisVoice | undefined;
-      if (preferredVoice) {
-        voice = voices.find((v) => v.name === preferredVoice);
-      }
-      if (!voice) {
-        const priority = [
-          'Samantha',
-          'Google US English',
-          'Microsoft Aria',
-          'Alex',
-          'Karen',
-          'Victoria',
-        ];
-        for (const name of priority) {
-          voice = voices.find((v) => v.name.includes(name));
-          if (voice) break;
-        }
-      }
+      const voice = pickVoice(voices, voiceType);
       if (voice) utterance.voice = voice;
 
       utterance.onstart = () => setIsSpeaking(true);
       utterance.onend = () => setIsSpeaking(false);
       utterance.onerror = () => setIsSpeaking(false);
 
-      utteranceRef.current = utterance;
       speechSynthesis.speak(utterance);
     },
-    [isSupported, rate, pitch, preferredVoice, voices]
+    [isSupported, rate, voiceType, voices]
   );
 
   const stop = useCallback(() => {
@@ -79,5 +70,5 @@ export function useSpeechSynthesis(
     setIsSpeaking(false);
   }, [isSupported]);
 
-  return { speak, stop, isSpeaking, voices, isSupported };
+  return { speak, stop, isSpeaking, isSupported };
 }
